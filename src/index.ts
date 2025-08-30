@@ -1,26 +1,33 @@
-// f58be9f7340f4a6dd072b85c64301dcf;
-// ef5163c8cb39fe002883b4c031e188a60d5821f4b38af3f0255d9102b9bf1413;
-// https://851dfb4f4148a95b9c6ba0608e58ae01.r2.cloudflarestorage.com
 import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { simpleGit, SimpleGit } from "simple-git";
-import { createClient } from "redis";
+// import { createClient } from "redis";        // for connecting to locally running redis
+import { Redis } from "@upstash/redis";
 import { generateId } from "./generateid.js";
 import { getAllFiles } from "./file.js";
 import { uploadFile } from "./aws.js";
+import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 // console.log(__filename);
 const __dirname = path.dirname(__filename);
 // console.log(__dirname);
 
-const publisher = createClient();
-publisher.connect();
+// const publisher = createClient();
+// publisher.connect();
 
-const subscriber = createClient();
-subscriber.connect();
+// const subscriber = createClient();
+// subscriber.connect();
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+// const publisher = redis;
+// const subscriber = redis;
 
 const app = express();
 app.use(cors());
@@ -42,21 +49,28 @@ app.post("/deploy", async (req, res) => {
       file
     );
   });
-  await new Promise((r) => setTimeout(r, 5000));
+  await new Promise((r) => setTimeout(r, 2000));
 
-  await publisher.lPush("build-queue", id);
-  publisher.hSet("status", id, "uploaded");
+  // await publisher.lPush("build-queue", id);
+  // publisher.hSet("status", id, "uploaded");
+
+  await redis.lpush("build-queue", id);
+  await redis.hset("status", { [id]: "uploaded" });
   res.status(200).json({ id: id });
 });
 
 app.get("/status", async (req, res) => {
   const id = req.query.id;
-  const response = await subscriber.hGet("status", id as string);
+  const response = await redis.hget("status", id as string);
   res.json({
     status: response,
   });
 });
 
-app.listen(3000, () => {
-  console.log(`Server is running on http://localhost:3000`);
+// app.listen(3000, () => {
+//   console.log(`Server is running on http://localhost:3000`);
+// });
+
+app.listen(7860, "0.0.0.0", () => {
+  console.log(`Server running on http://0.0.0.0:7860`);
 });

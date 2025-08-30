@@ -1,6 +1,7 @@
 import pkg from "aws-sdk";
 const { S3 } = pkg;
 import fs from "fs";
+import "dotenv/config";
 
 const endpoint = process.env.S3_ENDPOINT ?? "";
 const accessKeyId = process.env.S3_ACCESS_KEY_ID ?? "";
