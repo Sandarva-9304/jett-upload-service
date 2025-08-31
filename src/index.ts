@@ -56,14 +56,17 @@ app.post("/deploy", async (req, res) => {
 
   await redis.lpush("build-queue", id);
   await redis.hset("status", { [id]: "uploaded" });
+
   res.status(200).json({ id: id });
 });
 
 app.get("/status", async (req, res) => {
   const id = req.query.id;
+  const url = `https://${id}.jett.app`;
   const response = await redis.hget("status", id as string);
   res.json({
     status: response,
+    url: response === "deployed" ? url : null,
   });
 });
 
