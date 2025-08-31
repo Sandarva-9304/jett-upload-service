@@ -62,7 +62,7 @@ app.post("/deploy", async (req, res) => {
 
 app.get("/status", async (req, res) => {
   const id = req.query.id;
-  const url = `https://${id}.jett.app`;
+  const url = `https://jett-request-handler-service.onrender.com/${id}/`;
   const response = await redis.hget("status", id as string);
   res.json({
     status: response,
