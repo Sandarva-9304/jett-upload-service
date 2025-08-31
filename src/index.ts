@@ -9,11 +9,12 @@ import { generateId } from "./generateid.js";
 import { getAllFiles } from "./file.js";
 import { uploadFile } from "./aws.js";
 import "dotenv/config";
+import fetch from "node-fetch";
+
+const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
-// console.log(__filename);
 const __dirname = path.dirname(__filename);
-// console.log(__dirname);
 
 // const publisher = createClient();
 // publisher.connect();
@@ -33,6 +34,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+async function triggerGithubAction(jobId: string) {
+  const repo = "Sandarva-9304/jett-deploy-service"; // 🔹 replace with your repo
+  const workflow = "deploy.yml"; // 🔹 your workflow file
+  const token = process.env.WORKER_TOKEN; // 🔹 PAT with "workflow" scope
+
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      ref: "main", // branch
+      inputs: { job_id: jobId },
+    }),
+  });
+
+  if (!res.ok) {
+    console.error(await res.text());
+    throw new Error("Failed to trigger GitHub Action");
+  }
+}
+
 app.post("/deploy", async (req, res) => {
   const repoUrl = req.body.repoUrl;
   console.log(`Received request to deploy from repo: ${repoUrl}`);
@@ -40,9 +66,8 @@ app.post("/deploy", async (req, res) => {
   const id = generateId();
 
   await simpleGit().clone(repoUrl, path.join(__dirname, `./output/${id}`)); // Add your deployment logic here
-  //   console.log(path.join(__dirname, `./output/${id}`));
   const allFiles = getAllFiles(path.join(__dirname, `./output/${id}`));
-  // console.log(allFiles);
+
   allFiles.forEach(async (file) => {
     await uploadFile(
       file.slice(__dirname.length + 1).replaceAll("\\", "/"),
@@ -54,15 +79,15 @@ app.post("/deploy", async (req, res) => {
   // await publisher.lPush("build-queue", id);
   // publisher.hSet("status", id, "uploaded");
 
-  await redis.lpush("build-queue", id);
   await redis.hset("status", { [id]: "uploaded" });
+  await triggerGithubAction(id);
 
   res.status(200).json({ id: id });
 });
 
 app.get("/status", async (req, res) => {
   const id = req.query.id;
-  const url = `https://jett-request-handler-service.onrender.com/${id}/`;
+  const url = `https://deploywithjett.onrender.com/${id}/`;
   const response = await redis.hget("status", id as string);
   res.json({
     status: response,
@@ -74,6 +99,6 @@ app.get("/status", async (req, res) => {
 //   console.log(`Server is running on http://localhost:3000`);
 // });
 
-app.listen(7860, "0.0.0.0", () => {
-  console.log(`Server running on http://0.0.0.0:7860`);
+app.listen(PORT as number, "0.0.0.0", () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
