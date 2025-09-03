@@ -91,7 +91,7 @@ app.get("/status", async (req, res) => {
   const response = await redis.hget("status", id as string);
   res.json({
     status: response,
-    url: response === "deployed" ? url : null,
+    url: response === "deployed" ? url : "",
   });
 });
 
