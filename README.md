@@ -39,7 +39,7 @@ By combining modern frontend technologies, cloud-based storage, CI/CD automation
 
 ## 🏗️ Architecture
 
-![Jett Microservice Architecture](./jett-architecture.jpg)
+![Jett Microservice Architecture](./jett-architecture.png)
 
 _(Above: System flow between frontend, middleware, and backend microservices with Redis + Cloudflare R2 integration.)_
 
